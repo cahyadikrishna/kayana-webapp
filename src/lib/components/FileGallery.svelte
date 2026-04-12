@@ -13,13 +13,16 @@
 	let previewOpen = false;
 	let previewIndex = 0;
 
-	/** Build a consistent thumbnail URL for a file. */
+	/**
+	 * Build a thumbnail URL that works for publicly shared Drive files
+	 * without requiring Google authentication in the browser.
+	 *
+	 * drive.google.com/thumbnail is Google's official embed thumbnail endpoint —
+	 * it works for any file shared as "Anyone with the link".
+	 * thumbnailLink from the API requires auth cookies, so we skip it here.
+	 */
 	function thumbnailUrl(file: GoogleDriveFile): string {
-		if (file.thumbnailLink) {
-			return file.thumbnailLink.replace(/=s\d+$/, '=s400');
-		}
-		// Fallback: direct Drive access (requires file to be publicly shared)
-		return `https://drive.google.com/thumbnail?id=${file.id}&sz=s400`;
+		return `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
 	}
 
 	$: filteredFiles = searchQuery.trim()
