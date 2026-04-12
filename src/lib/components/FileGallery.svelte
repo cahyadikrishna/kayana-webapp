@@ -39,9 +39,8 @@
 		previewOpen = true;
 	}
 
-	function isSelected(fileId: string): boolean {
-		return $selectedFiles.some((f) => f.file_id === fileId);
-	}
+	// Reactive Set so the grid re-renders whenever the store changes
+	$: selectedIds = new Set($selectedFiles.map((f) => f.file_id));
 </script>
 
 <div class="flex flex-col gap-4">
@@ -109,7 +108,7 @@
 			{#each filteredFiles as file (file.id)}
 				<FileCard
 					{file}
-					selected={isSelected(file.id)}
+					selected={selectedIds.has(file.id)}
 					thumbnailUrl={thumbnailUrl(file)}
 					on:toggle={handleToggle}
 					on:preview={handlePreview}
