@@ -7,10 +7,7 @@
 	import { selections, selectedFiles, selectedCount } from '$lib/stores/selections.js';
 	import type { GoogleDriveFile } from '$lib/types/index.js';
 	import { APP_NAME } from '$lib/utils/constants.js';
-
-	// ── Change this to the admin's WhatsApp number in international format ──
-	// e.g. Indonesia: "628123456789", without + or spaces
-	const WHATSAPP_PHONE = '628123456789';
+	import { PUBLIC_ADMIN_WA_PHONE } from '$env/static/public';
 
 	let folderUrl = '';
 	let loading = false;
@@ -64,7 +61,7 @@
 			.map((f, i) => `${i + 1}. ${f.file_name}`)
 			.join('\n');
 		const text = `Halo, berikut file yang saya pilih:\n\n${lines}`;
-		return `https://api.whatsapp.com/send/?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(text)}`;
+		return `https://api.whatsapp.com/send/?phone=${PUBLIC_ADMIN_WA_PHONE}&text=${encodeURIComponent(text)}`;
 	}
 
 	function handleModalKey(e: KeyboardEvent) {
