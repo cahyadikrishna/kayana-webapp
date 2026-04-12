@@ -83,13 +83,21 @@
 			</button>
 		{/if}
 
-		<!-- Image — large thumbnailLink for the lightbox -->
+		<!-- Image — proxied through /api/thumb so no Google auth cookie needed -->
 		<div class="flex max-h-[85vh] max-w-[85vw] flex-col items-center gap-3">
-			<img
-				src={file.thumbnailLink?.replace(/=s\d+/, '=s1600') ?? ''}
-				alt={file.name}
-				class="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl"
-			/>
+			{#if file.thumbnailLink}
+				<img
+					src="/api/thumb?u={encodeURIComponent(file.thumbnailLink.replace(/=s\d+/, '=s1600'))}"
+					alt={file.name}
+					class="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl"
+				/>
+			{:else}
+				<img
+					src="/api/thumb?u={encodeURIComponent(`https://drive.google.com/thumbnail?id=${file.id}&sz=w1600`)}"
+					alt={file.name}
+					class="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl"
+				/>
+			{/if}
 			<div class="flex items-center gap-3">
 				<p class="text-sm text-white/80">{file.name}</p>
 				<a

@@ -14,16 +14,16 @@
 	let previewIndex = 0;
 
 	/**
-	 * Use the thumbnailLink returned by the Drive API (lh3.googleusercontent.com).
-	 * This works when the viewer is signed into Google, which is expected for this tool.
-	 * Falls back to drive.google.com/thumbnail for files without a thumbnailLink.
+	 * Route thumbnails through our server proxy (/api/thumb).
+	 * thumbnailLink from the Drive API (lh3.googleusercontent.com) requires
+	 * Google auth cookies when fetched directly by the browser. The server
+	 * proxy fetches the same URL without that restriction.
 	 */
 	function thumbnailUrl(file: GoogleDriveFile): string {
-		if (file.thumbnailLink) {
-			// Drive returns e.g. "=s220" — bump to 400px
-			return file.thumbnailLink.replace(/=s\d+/, '=s400');
-		}
-		return `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
+		const googleUrl = file.thumbnailLink
+			? file.thumbnailLink.replace(/=s\d+/, '=s400')
+			: `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
+		return `/api/thumb?u=${encodeURIComponent(googleUrl)}`;
 	}
 
 	$: filteredFiles = searchQuery.trim()
