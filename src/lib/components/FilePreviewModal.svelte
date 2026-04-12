@@ -83,10 +83,10 @@
 			</button>
 		{/if}
 
-		<!-- Image — use the same public thumbnail endpoint at a larger size -->
+		<!-- Image — large thumbnailLink for the lightbox -->
 		<div class="flex max-h-[85vh] max-w-[85vw] flex-col items-center gap-3">
 			<img
-				src="https://drive.google.com/thumbnail?id={file.id}&sz=w1600"
+				src={file.thumbnailLink?.replace(/=s\d+/, '=s1600') ?? ''}
 				alt={file.name}
 				class="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl"
 			/>
