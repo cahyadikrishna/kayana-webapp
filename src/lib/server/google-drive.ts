@@ -46,6 +46,73 @@ export async function fetchDriveFiles(folderId: string): Promise<GoogleDriveFile
 }
 
 /**
+ * Fetch one page of image files from a Google Drive folder.
+ * Returns the page's files and a nextPageToken if more pages exist.
+ */
+export async function fetchDriveFilesPaginated(
+	folderId: string,
+	pageSize = 50,
+	pageToken?: string
+): Promise<{ files: GoogleDriveFile[]; nextPageToken: string | null }> {
+	const mimeQuery = IMAGE_MIME_TYPES.map((t) => `mimeType='${t}'`).join(' or ');
+	const q = encodeURIComponent(`'${folderId}' in parents and (${mimeQuery}) and trashed=false`);
+	const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+	const url =
+		`${GOOGLE_DRIVE_API_BASE}/files` +
+		`?q=${q}` +
+		`&fields=nextPageToken,${DRIVE_FILE_FIELDS}` +
+		`&pageSize=${pageSize}` +
+		`&key=${GOOGLE_API_KEY}` +
+		pageParam;
+
+	const res = await fetch(url);
+	if (!res.ok) {
+		const err = await res.json().catch(() => ({}));
+		throw new Error(
+			`Google Drive API error ${res.status}: ${(err as { error?: { message?: string } }).error?.message ?? res.statusText}`
+		);
+	}
+	const data = (await res.json()) as { files: GoogleDriveFile[]; nextPageToken?: string };
+	return { files: data.files ?? [], nextPageToken: data.nextPageToken ?? null };
+}
+
+/**
+ * Count total image files in a Google Drive folder.
+ * Fetches only file IDs (no metadata) for speed.
+ */
+export async function countDriveFiles(folderId: string): Promise<number> {
+	const mimeQuery = IMAGE_MIME_TYPES.map((t) => `mimeType='${t}'`).join(' or ');
+	const q = encodeURIComponent(`'${folderId}' in parents and (${mimeQuery}) and trashed=false`);
+
+	let count = 0;
+	let pageToken: string | undefined;
+
+	do {
+		const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+		const url =
+			`${GOOGLE_DRIVE_API_BASE}/files` +
+			`?q=${q}` +
+			`&fields=nextPageToken,files(id)` +
+			`&pageSize=1000` +
+			`&key=${GOOGLE_API_KEY}` +
+			pageParam;
+
+		const res = await fetch(url);
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(
+				`Google Drive API error ${res.status}: ${(err as { error?: { message?: string } }).error?.message ?? res.statusText}`
+			);
+		}
+		const data = (await res.json()) as { files: { id: string }[]; nextPageToken?: string };
+		count += data.files?.length ?? 0;
+		pageToken = data.nextPageToken;
+	} while (pageToken);
+
+	return count;
+}
+
+/**
  * Build a thumbnail URL for a Drive file at a specific pixel width.
  * Falls back to the Drive API thumbnail endpoint if no thumbnailLink is set.
  */

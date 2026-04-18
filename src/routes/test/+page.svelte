@@ -11,10 +11,14 @@
 
 	let folderUrl = '';
 	let loading = false;
+	let isLoadingMore = false;
 	let files: GoogleDriveFile[] = [];
 	let folderId = '';
 	let errorMsg = '';
 	let fetched = false;
+	let pageToken: string | null = null;
+	let hasMore = false;
+	let total: number | null = null;
 
 	let modalOpen = false;
 
@@ -26,13 +30,20 @@
 		errorMsg = '';
 		files = [];
 		fetched = false;
-		selections.clear(); // reset selections when loading a new folder
+		pageToken = null;
+		hasMore = false;
+		total = null;
+		selections.clear();
 
 		try {
-			const res = await fetch(`/api/test-drive?folderUrl=${encodeURIComponent(trimmed)}`);
+			const res = await fetch(
+				`/api/test-drive?folderUrl=${encodeURIComponent(trimmed)}&pageSize=50`
+			);
 			const data = (await res.json()) as {
 				files?: GoogleDriveFile[];
 				folderId?: string;
+				pageToken?: string | null;
+				hasMore?: boolean;
 				total?: number;
 				message?: string;
 			};
@@ -44,11 +55,45 @@
 
 			files = data.files ?? [];
 			folderId = data.folderId ?? '';
+			pageToken = data.pageToken ?? null;
+			hasMore = data.hasMore ?? false;
+			total = data.total ?? null;
 			fetched = true;
 		} catch {
 			errorMsg = 'Network error — is the dev server running?';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadMore() {
+		if (isLoadingMore || !hasMore || !pageToken) return;
+
+		isLoadingMore = true;
+
+		try {
+			const res = await fetch(
+				`/api/test-drive?folderUrl=${encodeURIComponent(folderUrl.trim())}&pageSize=50&pageToken=${encodeURIComponent(pageToken)}`
+			);
+			const data = (await res.json()) as {
+				files?: GoogleDriveFile[];
+				pageToken?: string | null;
+				hasMore?: boolean;
+				message?: string;
+			};
+
+			if (!res.ok) {
+				errorMsg = data.message ?? `Error ${res.status}`;
+				return;
+			}
+
+			files = [...files, ...(data.files ?? [])];
+			pageToken = data.pageToken ?? null;
+			hasMore = data.hasMore ?? false;
+		} catch {
+			errorMsg = 'Network error while loading more';
+		} finally {
+			isLoadingMore = false;
 		}
 	}
 
@@ -153,7 +198,11 @@
 		{#if fetched && !errorMsg}
 			<div class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border bg-card px-4 py-2.5">
 				<span class="text-sm font-medium">
-					{files.length} image{files.length === 1 ? '' : 's'} fetched
+					{#if total !== null}
+						{files.length} / {total} photo{total === 1 ? '' : 's'} loaded
+					{:else}
+						{files.length} photo{files.length === 1 ? '' : 's'} loaded
+					{/if}
 				</span>
 				<span class="text-muted-foreground">·</span>
 				<span class="font-mono text-xs text-muted-foreground">folder: {folderId}</span>
@@ -162,7 +211,7 @@
 
 		<!-- Gallery -->
 		{#if fetched || loading}
-			<FileGallery {files} {loading} />
+			<FileGallery {files} {loading} {isLoadingMore} {hasMore} onLoadMore={loadMore} />
 		{:else if !errorMsg}
 			<div
 				class="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-24 text-center"

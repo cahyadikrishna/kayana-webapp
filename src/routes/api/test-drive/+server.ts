@@ -1,17 +1,17 @@
 /**
- * Minimal Google Drive endpoint — no Supabase, no session lookup.
- * Used by the /test page to validate Drive folder access and file listing.
- *
- * GET /api/test-drive?folderUrl=<url>
+ * Google Drive endpoint with pagination support.
+ * GET /api/test-drive?folderUrl=<url>&pageSize=50&pageToken=<token>
  */
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { GOOGLE_API_KEY } from '$env/static/private';
 import { extractFolderIdFromUrl } from '$lib/utils/helpers.js';
-import { fetchDriveFiles } from '$lib/server/google-drive.js';
+import { fetchDriveFilesPaginated, countDriveFiles } from '$lib/server/google-drive.js';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const folderUrl = url.searchParams.get('folderUrl');
+	const pageSize = parseInt(url.searchParams.get('pageSize') ?? '50');
+	const pageToken = url.searchParams.get('pageToken') ?? undefined;
 
 	if (!folderUrl) {
 		throw error(400, 'folderUrl query parameter is required');
@@ -27,8 +27,18 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	try {
-		const files = await fetchDriveFiles(folderId);
-		return json({ folderId, files, total: files.length });
+		// Count only on first page load — subsequent pages reuse the total from the client
+		const [result, total] = await Promise.all([
+			fetchDriveFilesPaginated(folderId, pageSize, pageToken),
+			pageToken ? Promise.resolve(null) : countDriveFiles(folderId)
+		]);
+		return json({
+			folderId,
+			files: result.files,
+			pageToken: result.nextPageToken,
+			hasMore: !!result.nextPageToken,
+			...(total !== null && { total })
+		});
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : 'Unknown error';
 		throw error(502, `Google Drive API error: ${msg}`);

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { ImageOff } from 'lucide-svelte';
 	import FileCard from './FileCard.svelte';
 	import SearchFiles from './SearchFiles.svelte';
@@ -8,10 +9,30 @@
 
 	export let files: GoogleDriveFile[] = [];
 	export let loading = false;
+	export let isLoadingMore = false;
+	export let hasMore = false;
+	export let onLoadMore: (() => Promise<void>) | undefined = undefined;
 
 	let searchQuery = '';
 	let previewOpen = false;
 	let previewIndex = 0;
+	let sentinel: HTMLDivElement;
+	let observer: IntersectionObserver;
+
+	$: if (sentinel) {
+		observer?.disconnect();
+		observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting && hasMore && !isLoadingMore && onLoadMore) {
+					onLoadMore();
+				}
+			},
+			{ rootMargin: '300px' }
+		);
+		observer.observe(sentinel);
+	}
+
+	onDestroy(() => observer?.disconnect());
 
 	/**
 	 * Route thumbnails through our server proxy (/api/thumb).
@@ -118,6 +139,20 @@
 					on:preview={handlePreview}
 				/>
 			{/each}
+
+			{#if isLoadingMore}
+				<div class="col-span-full py-6 text-center text-sm text-muted-foreground">
+					Loading more…
+				</div>
+			{/if}
+
+			{#if !hasMore && filteredFiles.length > 0 && !loading}
+				<div class="col-span-full py-4 text-center text-xs text-muted-foreground">
+					All photos loaded
+				</div>
+			{/if}
+
+			<div bind:this={sentinel} class="col-span-full h-1" aria-hidden="true"></div>
 		</div>
 	{/if}
 </div>
